@@ -30,6 +30,11 @@ input{min-height:46px}
 :focus-visible{outline:4px solid var(--focus);outline-offset:2px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:99px}
 [hidden]{display:none!important}
+.chk{display:flex;gap:8px;align-items:center;font-weight:600}.chk input{width:22px;height:22px;min-height:0}
+#printArea{display:none}
+@media print{body{background:#fff;color:#000;padding:0}.wrap,.toast{display:none!important}#printArea{display:block!important;font-family:"Malgun Gothic","Batang",serif;font-size:11pt;line-height:1.75}
+ #printArea h1{font-size:18pt;text-align:center;margin:0 0 6pt}#printArea .meta{text-align:right;font-size:10pt;margin:0 0 14pt}#printArea h2{font-size:12.5pt;margin:14pt 0 4pt;border-bottom:1px solid #000;padding-bottom:2pt}#printArea p{margin:0 0 6pt;white-space:pre-wrap}#printArea .extra h2{border-bottom:1px dashed #000}
+ @page{size:A4;margin:20mm 18mm}}
 </style>
 </head>
 <body>
@@ -56,13 +61,23 @@ input{min-height:46px}
     <div class="row"><button type="button" class="btn" id="make">AI 요청문 만들기</button></div>
     <div id="out" hidden>
       <p class="found" id="found"></p>
-      <div class="note"><b>AI에 넣기 전에 확인하세요.</b> 이름·전화번호 줄은 자동으로 뺐습니다. 본문에 남은 실명, 주소, 주민번호가 없는지 한 번 더 보세요. 회사 이름은 지원동기에 필요해서 남겨 두었습니다.</div>
+      <div class="note"><b>AI에 넣기 전에 꼭 직접 확인하세요.</b> 이름 줄과, 형식이 정해진 전화번호·이메일·주민번호는 자동으로 찾아 바꿨지만 <b>모두 찾았다고 장담할 수는 없습니다.</b> 문장 속 실명, 주소, 가족 이름 등이 남아 있지 않은지 읽어 보세요. 붙여 넣은 글은 그 AI 서비스로 전달됩니다. 회사 이름은 지원동기에 필요해서 남겨 두었습니다.</div>
       <textarea id="prompt" class="big"></textarea>
       <div class="row"><button type="button" class="btn" id="copyPrompt">요청문 복사하기</button></div>
       <p class="help">AI가 돌려준 글은 ‘초안에 없던 내용’ 목록부터 보고, 내담자에게 사실인지 확인한 뒤 쓰세요.</p>
     </div>
   </section>
+
+  <section class="card">
+    <h2>3. 받은 자기소개서 저장·출력</h2>
+    <p class="help">2번 칸에 붙여 넣은 문자를 깔끔한 문서로 만듭니다. 저장한 파일(.docx)은 <b>한글(한컴오피스)에서 바로 열리고</b>, 한글에서 [파일 → 다른 이름으로 저장]을 누르면 한글 문서(.hwp)로 바꿀 수 있습니다.</p>
+    <label class="chk"><input type="checkbox" id="withExtra" checked> ‘보완하면 좋은 점’과 ‘면접 대비 질문’도 넣기</label>
+    <label class="chk"><input type="checkbox" id="withName" checked> 이름 넣기</label>
+    <div class="row"><button type="button" class="btn" id="saveDoc">문서 파일 저장 (한글에서 열림)</button><button type="button" class="btn sub" id="printDoc">인쇄하기</button></div>
+    <p class="help">인쇄 창에서 프린터 대신 ‘PDF로 저장’을 고르면 PDF 파일로도 보관할 수 있습니다.</p>
+  </section>
 </div>
+<div id="printArea"></div>
 <div class="toast" id="toast" hidden></div>
 <script>
 (()=>{'use strict';
@@ -82,6 +97,7 @@ function clean(t){let removed=[];
   t=t.replace(/^\s*이름\s*:.*$/m,()=>{removed.push('이름');return '';});
   t=t.replace(/^\s*작성일\s*:.*$/m,'');t=t.replace(/^\s*\[자기소개서 제출\]\s*$/m,'');
   t=t.replace(/01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g,()=>{removed.push('전화번호');return '[연락처]';});
+  t=t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g,()=>{removed.push('이메일');return '[이메일]';});
   t=t.replace(/\d{6}[-\s]?[1-4]\d{6}/g,()=>{removed.push('주민번호');return '[삭제]';});
   return {t:t.replace(/\n{3,}/g,'\n\n').trim(),removed:[...new Set(removed)]};}
 function part(t,name){const m=t.match(new RegExp('\\['+name+'\\]\\n?([\\s\\S]*?)(?=\\n\\[|$)'));return m?m[1].trim():'';}
@@ -106,9 +122,71 @@ len?`6. 전체 분량은 공백 포함 ${Math.round(len*0.85)}~${len}자로 맞�
 '7. 다듬은 글 아래에 (가) 초안에 없던 표현이나 내용을 넣었다면 그 목록, (나) 면접에서 나올 만한 질문 3개를 따로 적어 주세요.',
 '',
 '[초안]',body].filter(x=>x!==null).join('\n').replace(/\n{3,}/g,'\n\n');
-  $('found').textContent=(removed.length?'뺀 정보: '+removed.join(', ')+'. ':'')+(need&&!/^없음/.test(need)?'보완할 점이 있는 초안입니다. 먼저 상담에서 채우면 결과가 더 좋아집니다.':'');
+  $('found').textContent=(removed.length?'자동으로 찾아 바꾼 정보: '+removed.join(', ')+'. ':'자동으로 찾은 개인정보는 없습니다. 직접 한 번 더 확인하세요. ')+(need&&!/^없음/.test(need)?'보완할 점이 있는 초안입니다. 먼저 상담에서 채우면 결과가 더 좋아집니다.':'');
   $('out').hidden=false;$('out').scrollIntoView({behavior:'smooth',block:'start'});
   if(asks)toast('문자 끝의 ‘면접 대비 질문’도 확인하세요.');};
+
+/* 3. 받은 문자를 문서로: 워드(.docx)는 한글에서 열리고 .hwp로 바꿔 저장할 수 있다 */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+async function deflateRaw(u){try{if(typeof CompressionStream==='undefined')return null;const cs=new CompressionStream('deflate-raw');const out=new Response(new Blob([u]).stream().pipeThrough(cs));return new Uint8Array(await out.arrayBuffer());}catch(e){return null;}}
+async function zipFiles(files){const enc=new TextEncoder();const parts=[];const cen=[];let off=0;
+  const u16=n=>[n&255,(n>>>8)&255],u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];
+  const d=new Date();const dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF,dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  for(const [name,text] of files){const nm=enc.encode(name),raw=enc.encode(text),crc=crc32(raw);const z=await deflateRaw(raw);const m=z?8:0,data=z||raw;
+    const lh=new Uint8Array([0x50,0x4b,3,4,...u16(20),...u16(0),...u16(m),...u16(dt),...u16(dd),...u32(crc),...u32(data.length),...u32(raw.length),...u16(nm.length),...u16(0)]);
+    parts.push(lh,nm,data);
+    cen.push(new Uint8Array([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0),...u16(m),...u16(dt),...u16(dd),...u32(crc),...u32(data.length),...u32(raw.length),...u16(nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nm);
+    off+=lh.length+nm.length+data.length;}
+  const cenLen=cen.reduce((a,x)=>a+x.length,0);
+  const end=new Uint8Array([0x50,0x4b,5,6,...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(cenLen),...u32(off),...u16(0)]);
+  return new Blob([...parts,...cen,end],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});}
+function xmlEsc(t){return String(t).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+async function makeDocx(text){const X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';const W='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+  const para=(t,style)=>`<w:p>${style?`<w:pPr><w:pStyle w:val="${style}"/></w:pPr>`:''}<w:r><w:t xml:space="preserve">${xmlEsc(t)}</w:t></w:r></w:p>`;
+  const lines=text.split('\n');const body=lines.map((l,i)=>{const x=l.trim();if(!x)return '';if(i===0)return para(x,'Title');if(/^\[.*\]$/.test(x)||(/^\d+\.\s/.test(x)&&!lines[i-1].trim()))return para(x.replace(/^\[|\]$/g,''),'Heading1');return para(l,'');}).join('')||'<w:p/>';
+  const now=new Date().toISOString().replace(/\.\d+Z$/,'Z');
+  const F='<w:rFonts w:ascii="Malgun Gothic" w:eastAsia="Malgun Gothic" w:hAnsi="Malgun Gothic" w:cs="Malgun Gothic"/>';
+  return zipFiles([
+   ['[Content_Types].xml',X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>'],
+   ['_rels/.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>'],
+   ['docProps/core.xml',X+`<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>자기소개서</dc:title><dc:creator>차근차근 자소서 만들기</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`],
+   ['docProps/app.xml',X+'<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Microsoft Office Word</Application></Properties>'],
+   ['word/_rels/document.xml.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/></Relationships>'],
+   ['word/settings.xml',X+`<w:settings ${W}><w:defaultTabStop w:val="800"/><w:characterSpacingControl w:val="doNotCompress"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`],
+   ['word/styles.xml',X+`<w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr>${F}<w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="ko-KR" w:eastAsia="ko-KR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="360" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="80"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style></w:styles>`],
+   ['word/document.xml',X+`<w:document ${W}><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1304" w:bottom="1440" w:left="1304" w:header="851" w:footer="992" w:gutter="0"/></w:sectPr></w:body></w:document>`]]);}
+
+function parseRecv(raw){const lines=raw.replace(/\r/g,'').split('\n');let name='',date='',title='';const out=[];let extra=false;const ex=[];
+  for(const l0 of lines){const l=l0.replace(/\s+$/,'');const x=l.trim();
+    if(/^\[(자기소개서 제출|직무 탐색 결과)\]$/.test(x)){if(/직무/.test(x))title='직무 탐색 결과';continue;}
+    let m=x.match(/^이름\s*:\s*(.+)$/);if(m&&!name){name=m[1].trim();continue;}
+    m=x.match(/^작성일\s*:\s*(.+)$/);if(m&&!date){date=m[1].trim();continue;}
+    if(/^\[(보완하면 좋은 점|보완할 점|면접 대비 질문|상담 때 함께 이야기할 것|상담 때 물어볼 질문)\]/.test(x))extra=true;
+    if(/^궁금한 점은 담당자에게/.test(x))continue;
+    if(!title&&x&&!/^\[/.test(x)&&!extra){title=x;continue;}
+    (extra?ex:out).push(l);}
+  const trim=a=>{while(a.length&&!a[0].trim())a.shift();while(a.length&&!a[a.length-1].trim())a.pop();return a;};
+  return {name,date,title:title||'자기소개서',body:trim(out),extra:trim(ex)};}
+function docLines(d,withExtra,withName){const meta=[withName&&d.name?'이름: '+d.name:'',d.date?'작성일: '+d.date:''].filter(Boolean).join('    ');
+  const L=[d.title];if(meta)L.push(meta,'');
+  const push=arr=>arr.forEach(l=>{const m=l.trim().match(/^\[([^\]]+)\]\s*(.*)$/);if(m){L.push('','['+m[1]+']');if(m[2])L.push(m[2]);}else L.push(l);});
+  push(d.body);if(withExtra&&d.extra.length){L.push('');push(d.extra);}
+  return L.join('\n').replace(/\n{3,}/g,'\n\n');}
+function getDoc(){const raw=$('recv').value.trim();if(!raw){toast('2번 칸에 받은 문자를 먼저 붙여 넣어 주세요.');$('recv').focus();return null;}return parseRecv(raw);}
+$('saveDoc').onclick=async()=>{const d=getDoc();if(!d)return;
+  try{const blob=await makeDocx(docLines(d,$('withExtra').checked,$('withName').checked));
+    const ymd=(d.date||'').replace(/[^0-9]/g,'');const nm=($('withName').checked&&d.name?d.name:'').replace(/[\\/:*?"<>|\s]+/g,'');
+    const fname=['자기소개서',nm,ymd].filter(Boolean).join('_')+'.docx';
+    const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=fname;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),10000);
+    toast(fname+' 파일을 저장했어요. ‘다운로드’ 폴더를 확인하세요.');}catch(e){toast('파일을 만들지 못했어요. 인쇄하기를 써 주세요.');}};
+$('printDoc').onclick=()=>{const d=getDoc();if(!d)return;const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const block=arr=>{let h='',para=[];const flush=()=>{if(para.length){h+=`<p>${esc(para.join('\n'))}</p>`;para=[];}};
+    arr.forEach(l=>{const m=l.trim().match(/^\[([^\]]+)\]\s*(.*)$/);if(m){flush();h+=`<h2>${esc(m[1])}</h2>`;if(m[2])para.push(m[2]);}else if(!l.trim())flush();else para.push(l);});flush();return h;};
+  const meta=[$('withName').checked&&d.name?'이름: '+d.name:'',d.date?'작성일: '+d.date:''].filter(Boolean).join('　　');
+  $('printArea').innerHTML=`<h1>${esc(d.title)}</h1>${meta?`<p class="meta">${esc(meta)}</p>`:''}${block(d.body)}${$('withExtra').checked&&d.extra.length?`<div class="extra">${block(d.extra)}</div>`:''}`;
+  window.print();};
+
 $('copyPrompt').onclick=()=>copy($('prompt'),'복사했어요. AI 창에 붙여 넣으세요.');
 })();
 </script>

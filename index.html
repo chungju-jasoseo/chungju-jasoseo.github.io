@@ -170,6 +170,7 @@ label.lbl{display:block;font-weight:700;margin:18px 0 6px;font-size:17px}
 .steps li::before{content:counter(st);grid-row:span 2;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-weight:700}
 .steps li b{display:inline!important;font-size:18px!important;margin:0!important}
 .steps li span{font-size:15px;color:var(--muted)}
+.steps li>b,.steps li>span{grid-column:2;word-break:keep-all;overflow-wrap:anywhere}
 .steps li span b{font-size:inherit!important;color:var(--ink)}
 .mailbox{margin-top:18px;padding-top:16px;border-top:1.5px dashed var(--line-strong)}
 .mailbox>b{display:block;font-size:17px}
@@ -505,7 +506,7 @@ start(){const started=!!(S.company||S.job||S.noCompany);return `<div class="hero
 <div class="note"><b>다 쓰고 나면 꼭 해 주세요.</b> 마지막 화면의 [담당자에게 보내기]를 누르고, 문자로 직접 보내 주셔야 담당자에게 전달됩니다.</div>
 <button type="button" class="big" data-act="sample">완성된 예시 먼저 보기</button>
 ${started?`<button type="button" class="big quiet" data-act="reset">처음부터 새로 쓰기</button>`:''}
-<p class="small">답한 내용은 내가 보내기 전에는 이 화면 밖으로 나가지 않고 저장되지도 않습니다. 해 보지 않은 일이나 없는 자격은 만들어 넣지 않습니다.</p></div>`;},company(){return head('어느 회사(기관)에 지원하시나요?','회사 이름만 적으면 됩니다. <span class="ex">예: 햇살요양원</span>')+txt('company',S.company,'회사·기관 이름',S.noCompany?'disabled':'')+'<div style="height:12px"></div>'+
+<p class="small">답한 내용은 내가 보내기 전에는 휴대폰 밖으로 나가지 않습니다. 실수로 새로고침해도 답은 남아 있고, <b>인터넷 창(탭)을 닫으면 지워집니다.</b> 해 보지 않은 일이나 없는 자격은 만들어 넣지 않습니다.</p></div>`;},company(){return head('어느 회사(기관)에 지원하시나요?','회사 이름만 적으면 됩니다. <span class="ex">예: 햇살요양원</span>')+txt('company',S.company,'회사·기관 이름',S.noCompany?'disabled':'')+'<div style="height:12px"></div>'+
   opt('noCompany','1','아직 지원할 회사를 정하지 않았어요',{soft:true,sub:'연습용으로 만들고, 회사가 정해지면 다시 만듭니다'});},
 job(){return head('어떤 일에 지원하시나요?','하나만 골라 주세요.')+`<div class="opts two">${JOBS.map(j=>opt('job',j[0],j[0],{single:true})).join('')}</div><div style="height:10px"></div><div class="opts">${opt('job','explore','아직 어떤 일을 할지 못 정했어요',{single:true,soft:true,sub:'몇 가지 질문으로 어울리는 일을 함께 찾아봅니다'})}</div>`+
   (S.job==='기타 직무'?`<label class="lbl" for="otherJob">하려는 일의 이름</label>${txt('otherJob',S.otherJob,'예: 아파트 택배 분류')}`:'');},
@@ -677,7 +678,13 @@ function build(){if(S.traits.length&&S.traits.length<=2&&S.strengths.join()!==S.
 const REQKEY=[['운전면허',/운전/],['요양보호사 자격증',/요양/],['경비원 신임교육',/경비|신임/],['지게차 운전기능사',/지게차/],['조리기능사',/조리/],['컴퓨터 관련 자격·교육',/컴퓨터|엑셀|한글|ITQ|OA/i]];
 function reqHit(cert){const r=S.req.trim();if(!r)return false;const k=REQKEY.find(x=>x[0]===cert);return k?k[1].test(r):r.includes(cert);}
 function classify(q){if(/실패|극복|갈등|어려(움|웠)|위기|힘들었|문제.{0,6}해결|해결한/.test(q))return 'hard';if(/성장|가치관|직업관|좌우명|생활\s*신조/.test(q))return 'growth';if(/장단점|장점|단점|성격/.test(q))return 'pers';if(/(동기|이유)/.test(q)&&/(포부|계획|입사\s*후)/.test(q))return 'mp';if(/동기|이유|지원하게|왜/.test(q))return 'motive';if(/포부|계획|입사\s*후|목표|앞으로|각오/.test(q))return 'plan';if(/경력|경험|사례|역량|직무|해\s*본|했던/.test(q))return 'career';if(/강점/.test(q))return 'strexp';if(/소개/.test(q))return 'intro';return 'unknown';}
-function qAnswer(q,s){const c=classify(q);return c==='intro'?[s.growth,s.pers,s.career].filter(Boolean).join(' '):c==='mp'?s.motive+' '+s.plan:(s[c]||'');}
+const QCAT_NAME={growth:'성장과정',pers:'장단점',motive:'지원동기',plan:'입사 후 포부',mp:'지원동기·포부',career:'경력·경험'};
+function qCats(q){const c=[];const at=r=>q.search(r);const add=(k,r)=>{const i=at(r);if(i>=0)c.push([k,i]);};
+  add('growth',/성장|가치관|직업관|좌우명|생활\s*신조/);add('pers',/장단점|장점|단점|성격/);
+  const mo=/동기|이유|지원하게|왜/,pl=/포부|계획|입사\s*후|목표|앞으로|각오/;if(at(mo)>=0&&at(pl)>=0)c.push(['mp',Math.min(at(mo),at(pl))]);else{add('motive',mo);add('plan',pl);}
+  add('career',/경력|경험|사례|해\s*본|했던/);return c.sort((a,b)=>a[1]-b[1]).map(x=>x[0]);}
+function qMulti(q){const c=classify(q);return c==='hard'||c==='unknown'?[]:(x=>x.length>1?x:[])(qCats(q));}
+function qAnswer(q,s){const m=qMulti(q);if(m.length)return m.map(k=>k==='mp'?s.motive+' '+s.plan:(s[k]||'')).filter(x=>x.trim()).join('\n\n');const c=classify(q);return c==='intro'?[s.growth,s.pers,s.career].filter(Boolean).join(' '):c==='mp'?s.motive+' '+s.plan:(s[c]||'');}
 
 function checks(){const L=[];const add=(st,t,d='')=>L.push({st,t,d});
   compName()?add('ok','지원 회사: '+compName()):add('need','지원할 회사가 정해지지 않았어요','지금은 연습용 글입니다. 지원할 회사가 정해지면 회사 이름을 넣어 다시 만드세요.');
@@ -686,6 +693,7 @@ function checks(){const L=[];const add=(st,t,d='')=>L.push({st,t,d});
   if(S.hasQ==='yes'&&!activeQs().length)add('need','공고 질문이 있다고 했지만 질문을 적지 않았어요','지금은 일반 자기소개서로 만들었습니다. 공고의 질문을 적으면 질문별로 나눠 만듭니다.');
   if(S.hasQ==='unk'||!S.hasQ)add('need','공고에 자기소개서 질문이 있는지 확인하세요','질문이 있으면 그 질문에 맞춰 나눠 써야 합니다.');
   activeQs().forEach(q=>{const c=classify(q.q);if(c==='hard')add('need',`${J('질문 '+(q.i+1),'은/는')} 실제로 겪은 어려운 일을 묻고 있어요`,`“${q.q}” — 고른 답만으로는 쓸 수 없어 비워 두었습니다. 실제로 겪은 어려운 일과 그때 어떻게 했는지를 2~3문장으로 직접 적어 보세요.`);else if(c==='unknown')add('need',`${J('질문 '+(q.i+1),'은/는')} 자동으로 답을 만들지 못했어요`,`“${q.q}” — 이 질문은 2~3문장으로 직접 적어 보세요.`);
+    const mc=qMulti(q.q);if(mc.length)add('need',`${J('질문 '+(q.i+1),'은/는')} 여러 가지를 함께 묻고 있어요`,`“${q.q}” — ${mc.map(k=>QCAT_NAME[k]).join(', ')} 내용을 이어 붙였습니다. 질문이 묻는 순서와 맞는지 읽어 보고, 필요하면 고쳐 주세요.`);
     const lim=parseInt(q.lim,10);const t=edited['q'+q.i]??qAnswer(q.q,build().s);if(lim&&t.length>lim)add('need',`${J('질문 '+(q.i+1),'이/가')} 글자 수를 ${t.length-lim}자 넘었어요`,`제한 ${lim}자, 지금 ${t.length}자(공백 포함)입니다.`);});
   if(compName()&&!S.creason.length&&!S.creasonText.trim())add('need','이 회사에 지원한 이유가 없어요','회사 이름만 바꾸면 다른 곳에도 낼 수 있는 글이 됩니다. 근무 시간, 위치, 소개받은 경로처럼 실제 이유를 하나 넣어 보세요.');
   S.motives.filter(x=>x!=='unsure').length?add('ok','지원 이유 반영'):add('need','지원 이유가 정해지지 않았어요','이 회사, 이 일을 고른 실제 이유(가까운 거리, 근무 시간, 해 본 일 등)를 한 가지 넣어 보세요.');
@@ -733,16 +741,15 @@ function sendBox(){return `<div class="sendbox"><h2>담당자에게 보내기</h
   <label class="lbl" for="sendName" style="margin-top:0">이름 (담당자가 알아볼 수 있게)</label>${txt('sendName',S.sendName,'예: 홍길동')}
   <button type="button" class="big main" data-act="send">담당자에게 보내기</button>
   <div class="guide" id="sendGuide" hidden></div>
-  <div class="mailbox"><b>메일로 보내기 (워드 파일)</b>
+  ${MAIL?`<div class="mailbox"><b>메일로 보내기 (워드 파일)</b>
   <p class="small" style="margin:4px 0 0">문자가 어려우면 워드 파일을 담당자 메일로 보낼 수 있어요. 휴대폰에 네이버 메일이나 Gmail 앱이 있어야 합니다.</p>
   ${MAIL?`<p class="mailaddr">담당자 메일: <b>${esc(MAIL)}</b></p>`:''}
   <button type="button" class="big" data-act="mailStart">워드 파일을 메일로 보내기</button>
-  <div class="guide" id="mailGuide" hidden></div></div></div>`;}
+  <div class="guide" id="mailGuide" hidden></div></div>`:''}</div>`;}
 /* 메일로 워드 파일 보내기: 서버가 없으므로 내담자 휴대폰의 메일 앱을 거친다.
    파일 공유가 되는 휴대폰(주로 아이폰)은 공유창으로 첨부, 안 되면(주로 안드로이드·PC) 저장 → 메일 쓰기 열기 → 첨부 순서로 안내 */
-const MAIL=(()=>{const ok=m=>/^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(m);let m='';try{m=(new URLSearchParams(location.search).get('m')||'').trim();}catch(e){}
-  if(ok(m)){try{localStorage.setItem('jasoseoMailTo',m);}catch(e){}return m;}
-  try{const k=localStorage.getItem('jasoseoMailTo')||'';return ok(k)?k:'';}catch(e){return '';}})();
+const MAIL=(()=>{try{const m=(new URLSearchParams(location.search).get('m')||'').trim();return /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(m)?m:'';}catch(e){return '';}})();
+/* 링크에 담당자 메일이 없으면 메일 보내기를 숨긴다(다른 담당자에게 잘못 가는 일을 막기 위해 주소를 기억하지 않는다) */
 const DOCX_TYPE='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 function mailFile(){const n=S.sendName.trim().replace(/[\\/:*?"<>|\s]+/g,'');return n?`자기소개서_${n}.docx`:'자기소개서.docx';}
 function mailSubject(){return ('[자기소개서 제출] '+S.sendName.trim()).trim();}
@@ -752,7 +759,7 @@ function mailHref(){return `mailto:${MAIL?encodeURIComponent(MAIL).replace('%40'
 let mailReady=null;
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a.mailopen');if(a)copyText(sendText());},true);
 function mailStart(mode){const g=document.getElementById('mailGuide');if(!g)return;g.hidden=false;
-  const to=MAIL?`<b>받는 사람 칸을 꾹 눌러 ‘붙여넣기’</b> 하세요.<span>담당자 메일 주소(${esc(MAIL)})가 복사되어 있어요.</span>`:`<b>받는 사람 칸에 담당자 메일 주소를 적으세요.</b><span>주소를 모르면 문자로 보내 주세요.</span>`;
+  const to=MAIL?`<b>받는 사람 칸을 꾹 눌러 ‘붙여넣기’ 하세요.</b><span>담당자 메일 주소(${esc(MAIL)})가 복사되어 있어요.</span>`:`<b>받는 사람 칸에 담당자 메일 주소를 적으세요.</b><span>주소를 모르면 문자로 보내 주세요.</span>`;
   if(mode!=='save'&&canShareFiles()){
     /* 공유창은 누른 순간 바로 열어야 막히지 않으므로, 파일은 미리 만들어 두고 주소도 지금 복사한다 */
     mailReady=null;makeDocx(docText()).then(b=>{mailReady=new File([b],mailFile(),{type:DOCX_TYPE});}).catch(()=>{});if(MAIL)copyText(MAIL);
@@ -852,12 +859,12 @@ function resultView(){const b=build();const ck=checks();const need=ck.filter(x=>
   else if(tab==='doc'){const d=docParts();body=bar+`<p class="doctitle">${esc(d.title)}</p>`+d.secs.map(([h,t],i)=>`<div class="sec${t?'':' empty'}"><h3><label for="sec${i}">${i+1}. ${esc(h)}</label><small id="c_sec${i}">${t.length}자</small></h3><textarea id="sec${i}" data-ed="sec${i}" placeholder="아직 고른 답이 없어 비워 두었습니다. 상담 때 함께 채우거나 직접 써 넣으세요.">${esc(t)}</textarea></div>`).join('')+`<p class="small">각 칸을 눌러 직접 고칠 수 있습니다. 빈 칸은 ‘전체 복사’에 들어가지 않습니다.</p>`;}
   else{const t=edited.talk??b.talk;body=`<div class="docbox" style="margin-top:14px"><label class="small" for="draft">면접에서 “장점이 무엇인가요?”라고 물을 때 이 순서대로 말해 보세요.</label><textarea id="draft" data-ed="talk">${esc(t)}</textarea></div><div class="row"><button type="button" class="main" data-act="copy" data-src="draft">복사하기</button></div>`;}
   return `${banner}<h1>${need?'자기소개서 초안이 만들어졌습니다':'자기소개서가 만들어졌습니다'}</h1>
-  <div class="status ${need?'need':'ok'}">${need?`아직 완성본은 아니에요. 보완할 곳 ${need}개를 ‘자기 점검’에서 보세요.`:'필요한 내용이 모두 들어갔어요. 제출 전에 한 번 소리 내어 읽어 보세요.'}</div>
+  <div class="status ${need?'need':'ok'}">${need?`아직 완성본은 아니에요. 보완할 곳 ${need}개를 ‘자기 점검’에서 보세요.`:'필수 항목은 모두 들어갔어요. 제출 전에 사실과 다른 내용이 없는지, 문장이 자연스러운지 소리 내어 읽어 보세요.'}</div>
   ${sampleMode?'':sendBox()}
   <div class="tabs" role="tablist"><button type="button" role="tab" data-tab="doc" aria-selected="${tab==='doc'}">자기소개서</button><button type="button" role="tab" data-tab="talk" aria-selected="${tab==='talk'}">면접 강점소개</button><button type="button" role="tab" data-tab="check" aria-selected="${tab==='check'}">자기 점검${need?' ('+need+')':''}</button></div>
   ${body}${tab!=='check'?`<div class="row"><button type="button" data-act="regen">고른 답으로 다시 만들기</button></div><p class="small" style="margin:6px 0 0">다시 만들어도 지금 글은 아래 ‘이전에 만든 글’에 보관됩니다.</p>${versionList()}`:''}
   ${sampleMode?'':`<div class="row"><button type="button" data-act="go" data-to="company">답 고치러 가기</button></div>`}
-  <p class="small" style="margin-top:14px">이 화면을 닫으면 내용이 지워집니다. 복사하거나 워드로 저장해 두세요.</p>`;}
+  <p class="small" style="margin-top:14px">인터넷 창(탭)을 닫으면 내용이 지워집니다. 보내기 전에 닫지 마세요.</p>`;}
 
 /* ---------- 렌더 ---------- */
 const app=document.getElementById('app');const nav=document.getElementById('nav');
@@ -865,7 +872,7 @@ function render(){const sc=screens();if(idx>=sc.length)idx=sc.length-1;const nam
   const html=name.startsWith('ev')?evScreen(+name.slice(3),name[2]):R[name]();
   app.innerHTML=(name==='start'||name==='result')?html:`<section class="qcard">${html}</section>`;renderStepper(name);if(name==='result'&&!sampleMode)render.lastSnap=snapshot();
   nav.hidden=name==='start'||name==='result';document.getElementById('next').hidden=name==='exResult';
-  updateNext();updateCounts();updatePreview();fillJump();if(render.last!==name){window.scrollTo({top:0});render.last=name;}}
+  updateNext();updateCounts();updatePreview();fillJump();keepSession();if(render.last!==name){window.scrollTo({top:0});render.last=name;}}
 function answered(name){if(name.startsWith('ev')){const e=evOf(S.strengths[+name.slice(3)]);return name[2]==='A'?(!realExp().length||hasEv(e)):(e.how.length||e.result.length);}
   return ({company:S.company.trim()||S.noCompany,job:S.job&&(S.job!=='기타 직무'||S.otherJob.trim()),tasks:S.tasks.length||S.otherTasks.trim(),posting:S.hasQ,motive:S.motives.length,exptype:S.expTypes.length,
     did:didAll().length||!realExp().length,ability:Object.keys(S.ability).length===10,abilityResult:true,traits:S.traits.length,strength:S.strengths.length,
@@ -941,6 +948,12 @@ function sampleState(){const s=blank();Object.assign(s,{company:'햇살요양원
   s.ev['책임감']={where:'job',place:'시청 앞 상가건물',period:'y5',what:['화장실 청소','분리수거'],how:['check','finish'],result:['trusted']};
   s.ev['성실성']={where:'job',place:'시청 앞 상가건물',period:'y5',what:['화장실 청소','분리수거'],how:['punctual','prepare'],result:['long']};return s;}
 
+/* 새로고침·뒤로 가기에도 답이 남도록, 이 탭이 열려 있는 동안만 보관(sessionStorage). 탭을 닫으면 브라우저가 지운다. */
+const SKEY='jasoseo-session';
+function keepSession(){if(sampleMode)return;try{sessionStorage.setItem(SKEY,JSON.stringify({S,idx,reached,edited,versions,tab}));}catch(e){}}
+(()=>{try{const o=JSON.parse(sessionStorage.getItem(SKEY)||'null');if(o&&o.S){S=Object.assign(blank(),o.S);idx=+o.idx||0;reached=+o.reached||0;edited=o.edited||{};versions=Array.isArray(o.versions)?o.versions:[];tab=o.tab||'doc';}}catch(e){}})();
+let keepT=0;document.addEventListener('input',()=>{clearTimeout(keepT);keepT=setTimeout(keepSession,400);},true);
+window.addEventListener('pagehide',keepSession);
 render();
 })();
 </script>
