@@ -177,6 +177,8 @@ label.lbl{display:block;font-weight:700;margin:18px 0 6px;font-size:17px}
 .mailaddr{margin:6px 0 0;font-size:15px;word-break:break-all}
 .mailbox .row{display:grid;gap:8px}
 .mailbox a.big{text-decoration:none;color:var(--ink)}
+.sendbox a.big{text-decoration:none;color:var(--ink);flex-direction:column;text-align:center;gap:2px;padding:10px 12px}
+.sendbox a.big small{font-weight:500;font-size:14px;color:var(--muted)}
 .linkbtn{border:0;background:none;color:var(--accent);text-decoration:underline;font-weight:700;padding:0;font-size:inherit}
 .banner{background:var(--warn-soft);border-radius:12px;padding:14px 16px;margin:0 0 14px;font-size:16px}
 .banner b{display:block;color:var(--warn)}
@@ -740,6 +742,7 @@ function sendBox(){return `<div class="sendbox"><h2>담당자에게 보내기</h
   <p class="help" style="margin-bottom:10px">다 고친 뒤 이 버튼을 누르고, 문자로 보내 주세요.</p>
   <label class="lbl" for="sendName" style="margin-top:0">이름 (담당자가 알아볼 수 있게)</label>${txt('sendName',S.sendName,'예: 홍길동')}
   <button type="button" class="big main" data-act="send">담당자에게 보내기</button>
+  ${TEL?`<a class="big smsopen" href="sms:${TEL}">담당자 번호(${esc(telFmt(TEL))})로 문자 보내기<small>번호와 자기소개서 글이 들어간 문자 화면이 열려요. 보내기(➤)만 누르세요.</small></a>`:''}
   <div class="guide" id="sendGuide" hidden></div>
   ${MAIL?`<div class="mailbox"><b>메일로 보내기 (워드 파일)</b>
   <p class="small" style="margin:4px 0 0">문자가 어려우면 워드 파일을 담당자 메일로 보낼 수 있어요. 휴대폰에 네이버 메일이나 Gmail 앱이 있어야 합니다.</p>
@@ -756,6 +759,10 @@ function mailSubject(){return ('[자기소개서 제출] '+S.sendName.trim()).tr
 function mailBody(){return sendText();}
 function canShareFiles(){try{return !!(navigator.canShare&&navigator.canShare({files:[new File(['x'],'a.docx',{type:DOCX_TYPE})]}));}catch(e){return false;}}
 function mailHref(){return `mailto:${MAIL?encodeURIComponent(MAIL).replace('%40','@'):''}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody())}`;}
+const TEL=(()=>{try{const t=(new URLSearchParams(location.search).get('t')||'').replace(/[^0-9]/g,'');return /^0\d{8,10}$/.test(t)?t:'';}catch(e){return '';}})();
+function telFmt(d){return d.length===11?d.replace(/(\d{3})(\d{4})(\d{4})/,'$1-$2-$3'):d.replace(/(\d{2,3})(\d{3,4})(\d{4})/,'$1-$2-$3');}
+/* QR로 들어온 내담자는 답장할 문자방이 없으므로, 담당자 번호가 링크에 있으면 번호·본문이 채워진 문자 화면을 연다. 본문이 잘리는 휴대폰을 위해 복사도 함께 한다. */
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a.smsopen');if(!a)return;const t=sendText();copyText(t);a.href=`sms:${TEL}?&body=${encodeURIComponent(t)}`;},true);
 let mailReady=null;
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a.mailopen');if(a)copyText(sendText());},true);
 function mailStart(mode){const g=document.getElementById('mailGuide');if(!g)return;g.hidden=false;
